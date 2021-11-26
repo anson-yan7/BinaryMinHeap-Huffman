@@ -1,3 +1,5 @@
+
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -18,9 +20,57 @@ public class Huffman {
      * @throws IllegalArgumentException seed is null, seed is empty, or resulting alphabet only has
      *                                  1 character
      */
+    public class Node<V> {
+        private Node<V> left;
+        private Node<V> right;
+        private V value;
+
+        public Node(V value) {
+            this.value = value;
+            this.left = null;
+            this.right = null;
+        }
+        
+        public Node(Node<V> left, Node<V> right) {
+            this.left = left;
+            this.right = right;
+            this.value = null;
+        }
+        public Boolean isLeaf() {
+            return this.value != null;
+        }
+        public Node<V> getLeft() {
+            return this.left;
+        }
+        public Node<V> getRight() {
+            return this.right;
+        }
+    }
+    
+    private Node<Character> root;
+    private HashMap<Character, String> str = new HashMap<>();
+    private HashMap<Character, Integer> alpha;
+    private double inputBits = 0;
+    private double outputBits = 0;
+
     public Huffman(String seed) {
-        // TODO: implement
-        throw new UnsupportedOperationException();
+        if (seed == null || seed.isEmpty()) {
+            throw new IllegalArgumentException();
+        }
+        HashMap<Character, Integer> map = new HashMap<>();
+        for (int i = 0; i < seed.length(); i++) {
+            if (map.containsKey(seed.charAt(i))) {
+                map.put(seed.charAt(i), map.get(seed.charAt(i)) + 1);
+            } else {
+                map.put(seed.charAt(i), 1);
+            }
+        }
+        if (map.size() == 1) {
+            throw new IllegalArgumentException();
+        }
+        alpha = map;
+        huffmanConstructor(makeHeap(map));
+        makeMap(root, "");
     }
 
     /**
@@ -33,8 +83,42 @@ public class Huffman {
      *                                  or has any non-positive frequencies
      */
     public Huffman(Map<Character, Integer> alphabet) {
-        // TODO: implement
-        throw new UnsupportedOperationException();
+        if (alphabet == null || alphabet.isEmpty() || alphabet.size() < 2) {
+            throw new IllegalArgumentException();
+        }
+        for (Character c : alphabet.keySet()) {
+            if (alphabet.get(c).intValue() < 0) {
+                throw new IllegalArgumentException();
+            }
+        }
+        alpha = (HashMap<Character, Integer>) alphabet;
+        huffmanConstructor(makeHeap(alphabet));
+        makeMap(root, "");
+    }
+    
+    private void makeMap(Node<Character> top, String v) {
+        if (top.isLeaf()) {
+            str.put(top.value, v);
+        } else {
+            makeMap(top.right, v + '1');
+            makeMap(top.left, v + '0');
+        }
+    }
+    private BinaryMinHeap<Integer, Node<Character>> makeHeap(Map<Character, Integer> alphabet) {
+        BinaryMinHeap<Integer, Node<Character>> output = new BinaryMinHeapImpl<>();
+        alphabet.forEach((k,v) -> output.add(v, new Node<>(k)));
+        return output;
+    }
+    private void huffmanConstructor(BinaryMinHeap<Integer, Node<Character>> heap) {
+        if (heap.size() != 1) {
+            BinaryMinHeap.Entry<Integer, Node<Character>> first = heap.extractMin();
+            BinaryMinHeap.Entry<Integer, Node<Character>> second = heap.extractMin();
+            heap.add(first.key + second.key, new Node<>(first.value, second.value));
+            huffmanConstructor(heap);
+        } else {
+            BinaryMinHeap.Entry<Integer, Node<Character>> first = heap.extractMin();
+            this.root = first.value;
+        }
     }
 
     /**
@@ -46,8 +130,19 @@ public class Huffman {
      *                                  that are not compressible
      */
     public String compress(String input) {
-        // TODO: implement
-        throw new UnsupportedOperationException();
+        if (input == null) {
+            throw new IllegalArgumentException();
+        }
+        inputBits = inputBits + (double) input.length();
+        StringBuilder output = new StringBuilder();
+        for (int i = 0; i < input.length(); i ++) {
+            if (str.get(input.charAt(i)) == null) {
+                throw new IllegalArgumentException();
+            }
+            output.append(str.get(input.charAt(i)));
+            outputBits = outputBits + (double) str.get(input.charAt(i)).length();
+        }
+        return output.toString();
     }
 
     /**
@@ -61,8 +156,29 @@ public class Huffman {
      *                                  that is not decodable
      */
     public String decompress(String input) {
-        // TODO: implement
-        throw new UnsupportedOperationException();
+        if (input == null) {
+            throw new IllegalArgumentException();
+        }
+        StringBuilder output = new StringBuilder();
+        Node<Character> curr = root;
+        int i = 0;
+        while (i < input.length()) {
+            if (curr.value == null) {
+                if (input.charAt(i) == '1') {
+                    curr = curr.right;
+                } else if (input.charAt(i) == '0') {
+                    curr = curr.left;
+                } else {
+                    throw new IllegalArgumentException();
+                }
+                i++;
+            }
+            if (curr.value != null) {
+                output.append(curr.value);
+                curr = root;
+            }
+        }
+        return output.toString();
     }
 
     /**
@@ -75,8 +191,11 @@ public class Huffman {
      *                               calling this method
      */
     public double compressionRatio() {
-        // TODO: implement
-        throw new UnsupportedOperationException();
+        if (inputBits == 0 || outputBits == 0) {
+            throw new IllegalArgumentException();
+        } else {
+            return outputBits / (inputBits * 16.0);
+        }
     }
 
     /**
@@ -89,7 +208,15 @@ public class Huffman {
      * @return the expected encoding length of an arbitrary character in the alphabet
      */
     public double expectedEncodingLength() {
-        // TODO: implement
-        throw new UnsupportedOperationException();
+        double output = 0;
+        double sum = 0;
+        for (Character c : alpha.keySet()) {
+            sum = sum + (double) alpha.get(c);
+        }
+        for (Character c : alpha.keySet()) {
+            output = output + ((double) str.get(c).length() * (double) alpha.get(c) / sum);
+        }
+        return output;
     }
+    
 }
